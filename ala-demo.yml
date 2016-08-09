@@ -2,4 +2,22 @@
   become: yes
   become_user: root
   roles:
+    - common
+    - java
+    - tomcat
+    - cassandra
+    - mysql
+    - apache
+    - nameindex
+    - solr
+    - logger-client
+    - biocache-db
+    - biocache-properties    
+    - biocache-service
+    - { role: biocache-hub, biocache_hub: generic-hub }
+    - collectory
+    - sandbox
+    - biocache-cli
+    - nameindexer    
+    - logger-service
     - demo
