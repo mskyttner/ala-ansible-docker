@@ -1,0 +1,13 @@
+- include: ../../common/tasks/setfacts.yml
+
+- name: copy transient files to tmp (schemas etc)
+  copy: src={{item}} dest=/tmp
+  with_items:
+    - cassandra/cassandra-schema.txt
+  tags:
+    - biocache_db
+
+- name: create schema
+  shell: "cassandra-cli < /tmp/cassandra-schema.txt"
+  tags:
+    - biocache_db

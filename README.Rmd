@@ -1,65 +1,74 @@
-Introduction
-------------
+---
+title: "Deploying ALA/ALE using Docker"
+output:
+  html_document:
+    theme: united
+    toc: yes
+  md_document:
+    variant: markdown_github
+date: "12/07/2016"
+---
 
-This is a tutorial outlining steps needed to "dockerize"" `Atlas of Living Australia (Europe?)`. This means packaging the software in a way that enables deployment on a Docker host - ie some hardware platform running the Docker daemon and in this case also the Docker Compose tool.
+## Introduction
 
-Why do this when Ansible install scripts already exist? Well, why not? It is a matter of preference whether one prefers or is familiar with a particular deployment method.
+This is a tutorial outlining steps needed to "dockerize"" `Atlas of Living Australia (Europe?)`. This means packaging the software in a way that enables deployment on a Docker host - ie some hardware platform running the Docker daemon and in this case also the Docker Compose tool. 
+
+Why do this when Ansible install scripts already exist? Well, why not? It is a matter of preference whether one prefers or is familiar with a particular deployment method. 
 
 Here we benefit from using the "compile time" Docker build step to create one image which can be deployed from Docker Hub, thus avoid "replaying playbooks" that may break on a specific platform setup and that must be tested on many different OS:es. In this project we reuse the Ansible scripts when building the Docker image, but we can later choose to remove the depenceny on Ansible, should we prefer to do so.
 
-Deployment approach
-===================
 
-In the Docker build step, we are using an Ubuntu image with Ansible and initially a ssh-to-self approach (later changed to a local Ansible deploy, but both are possible). So, on the Ubuntu image, Ansible is used to log in to the relevant server - being itself, an Ubuntu 14 image with Ansible installed - and Ansible is used to play back the the existing playbook steps.
+# Deployment approach
 
-The out-of-the-box ala-install from the official ALA repo needed some minor modifications for it to play out (mostly) properly.
+In the Docker build step, we are using an Ubuntu image with Ansible and initially a ssh-to-self approach (later changed to a local Ansible deploy, but both are possible). So, on the Ubuntu image, Ansible is used to log in to the relevant server -  being itself, an Ubuntu 14 image with Ansible installed - and Ansible is used to play back the the existing playbook steps. 
+
+The out-of-the-box ala-install from the official ALA repo needed some minor modifications for it to play out (mostly) properly. 
 
 A future step could be to convert to use micro-services architecture and docker-compose instead. A start can be found in `docker-compose.yml` with the db and some other components added, but not yet all of them including tomcat, cassandra etc.
 
-Makefile
---------
+## Makefile
 
 This project includes a `Makefile` which automates the actions that can be made. It requires `git`, `make`, `docker` and `docker-compose` to run properly. Available actions then include for example:
 
--   `make build` builds the Docker image
--   `make push` pushes the Docker image built to Docker Hub
+- `make build` builds the Docker image
+- `make push` pushes the Docker image built to Docker Hub
 
 For other available actions, check out the Makefile text file.
 
-Workflow and customizations
----------------------------
+## Workflow and customizations
 
-1.  The Dockerfile uses `/etc/hosts` to make sure the host machine responds to the name `ala-demo`.
+1. The Dockerfile uses `/etc/hosts` to make sure the host machine responds to the name `ala-demo`.
 
-2.  A base of Ubuntu 14 is used which has an install of `ansible` from <https://hub.docker.com/r/williamyeh/ansible/>
+1. A base of Ubuntu 14 is used which has an install of `ansible` from <https://hub.docker.com/r/williamyeh/ansible/>
 
-3.  An ssh service is installed and configured, so Ansible can be deployed using ssh.
+1. An ssh service is installed and configured, so Ansible can be deployed using ssh.
 
-4.  The git repo with the ansible install scripts are used: `git clone https://github.com/AtlasOfLivingAustralia/ala-install`
+1. The git repo with the ansible install scripts are used:
+`git clone https://github.com/AtlasOfLivingAustralia/ala-install`
 
-5.  If one step fails in the playbook(s), all of the Ansible playbook(s) fails.. and the Docker image does not build. Since some Ansible config .yml files fail on Ubuntu 14 with Ansible, some modifications were needed to temporarily quick-fix those issues. In one instance, ignore\_errors was used for a task (tar extraction of file archive made on Mac OS X on Ubuntu host).
+1. If one step fails in the playbook(s), all of the Ansible playbook(s) fails.. and the Docker image does not build. Since some Ansible config .yml files fail on Ubuntu 14 with Ansible, some modifications were needed to temporarily quick-fix those issues. In one instance, ignore_errors was used for a task (tar extraction of file archive made on Mac OS X on Ubuntu host).
 
-Ansible issues using out-of-the-box files
------------------------------------------
+## Ansible issues using out-of-the-box files
 
 Without changing the ala-install files, you may get various Ansible task failure messages, for example like this at the steps that create the database:
 
-``` console
+```console
 TASK [mysql : change root user password on first run] **************************
 failed: [ala-demo] (item=24dcaea7d349) => {"failed": true, "item": "24dcaea7d349", "msg": "unable to connect to database, check login_user and login_******** are correct or /root/.my.cnf has the credentials. Exception message: (2002, \"Can't connect to local MySQL server through socket '/var/run/mysqld/mysqld.sock' (2)\")"}
 failed: [ala-demo] (item=127.0.0.1) => {"failed": true, "item": "127.0.0.1", "msg": "unable to connect to database, check login_user and login_******** are correct or /root/.my.cnf has the credentials. Exception message: (2002, \"Can't connect to local MySQL server through socket '/var/run/mysqld/mysqld.sock' (2)\")"}
 failed: [ala-demo] (item=::1) => {"failed": true, "item": "::1", "msg": "unable to connect to database, check login_user and login_******** are correct or /root/.my.cnf has the credentials. Exception message: (2002, \"Can't connect to local MySQL server through socket '/var/run/mysqld/mysqld.sock' (2)\")"}
 failed: [ala-demo] (item=localhost) => {"failed": true, "item": "localhost", "msg": "unable to connect to database, check login_user and login_******** are correct or /root/.my.cnf has the credentials. Exception message: (2002, \"Can't connect to local MySQL server through socket '/var/run/mysqld/mysqld.sock' (2)\")"}
+
 ```
 
-Quick-fixes
------------
+## Quick-fixes
 
-Changing the mysql Ansible config file can work around some issues that would otherwise stop the docker build process.
+Changing the mysql Ansible config file can work around some issues that would otherwise stop the docker build process. 
 
 Other similar issues with various other Ansible configs could be worked around, too, by overwriting original files from the `ala-install` repo with modified files in the Dockerfile, like so:
 
-``` console
+
+```console
 # This is a snippet from Dockerfile with configs that override those Ansible configs that failed
 
 # fix issue with mysql install
@@ -74,39 +83,38 @@ ADD biocache-db-main.yml ansible/roles/biocache-db/tasks/main.yml
 # fix issue with gnu tar extraction from archive made on Mac OS X
 # http://lifeonubuntu.com/tar-errors-ignoring-unknown-extended-header-keyword/
 ADD biocache-properties-main.yml ansible/roles/biocache-properties/tasks/main.yml
+
 ```
 
-These ugly quickfixes allowed the Ansible steps to complete.
+These ugly quickfixes allowed the Ansible steps to complete. 
 
 It is probably possible and better to alleviate these issues with Ansible reconfigurations... but that requires some familiarity with that toolchain...
 
-Monolithic Docker image
-=======================
+# Monolithic Docker image
 
-This Dockerfile creates a Docker image which runs several services at once on the same host. In that sense it is somewhat monolithic.
+This Dockerfile creates a Docker image which runs several services at once on the same host. In that sense it is somewhat monolithic. 
 
-Therefore it needs ["supervisord"](https://docs.docker.com/engine/admin/using_supervisord/) or similar for managing the services, as they cannot be easily independently managed using `Docker Compose`, which would be preferred.
+Therefore it needs ["supervisord"](https://docs.docker.com/engine/admin/using_supervisord/) or similar for managing the services, as they cannot be easily independently managed using `Docker Compose`, which would be preferred. 
 
 The "monlithic single-server multi-service"" configuration is made in the `supervisord-ala.conf` file. This file defines all the various services that should run once a container is started based off that image.
 
-Future steps
-============
+# Future steps
 
-A future step could be to break up the ALA components into several independent Docker containers, for a a more granual microserver architecture.
+A future step could be to break up the ALA components into several independent Docker containers, for a a more granual microserver architecture. 
 
 This would entail refactoring to use a separate db instance based on the official mariadb Docker Hub image, to use a separate cassandra service, a separate Tomcat image - the official one from Docker Hub etc etc....
 
-Steps that progress slowly
---------------------------
+## Steps that progress slowly
 
 These are some slow steps that require patience when the playbooks run:
 
-1.  Downloading col index from <http://s3.amazonaws.com/ala-nameindexes/20140610/col_namematching.tgz>
+1. Downloading col index from http://s3.amazonaws.com/ala-nameindexes/20140610/col_namematching.tgz
 
-2.  The task "biocache-db : ensure cassandra is running", times out, finally giving this error message:
+1. The task "biocache-db : ensure cassandra is running", times out, finally giving this error message:
 
-``` console
+```console
 fatal: [ala-demo]: FAILED! => {"changed": false, "elapsed": 300, "failed": true, "msg": "Timeout when waiting for 127.0.0.1:9160"}
 
 "status_code": 404, "url": "http://biocache.ala.org.au/archives/layers/sds-layers.tgz"
 ```
+
